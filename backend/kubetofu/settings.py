@@ -121,7 +121,9 @@ CHANNEL_LAYERS = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -225,7 +227,9 @@ ARVANCLOUD_SETTINGS = {
     "BASE_URL": env("ARVAN_BASE_URL", default="https://napi.arvancloud.ir"),
     "IAAS_URL": env("ARVAN_IAAS_URL", default="https://napi.arvancloud.ir/ecc/v1"),
     "CDN_URL": env("ARVAN_CDN_URL", default="https://napi.arvancloud.ir/cdn/4.0"),
-    "DNS_URL": env("ARVAN_DNS_URL", default="https://napi.arvancloud.ir/cdn/4.0/domains"),
+    "DNS_URL": env(
+        "ARVAN_DNS_URL", default="https://napi.arvancloud.ir/cdn/4.0/domains"
+    ),
 }
 
 INFRASTRUCTURE_SETTINGS = {

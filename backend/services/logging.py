@@ -2,19 +2,17 @@ import asyncio
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
 from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 
 logger = logging.getLogger(__name__)
 
 
 class LogLevel(str, Enum):
-    
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
@@ -23,7 +21,6 @@ class LogLevel(str, Enum):
 
 
 class LogCategory(str, Enum):
-    
     AGENT = "agent"
     TOOL = "tool"
     DEPLOYMENT = "deployment"
@@ -37,8 +34,6 @@ class LogCategory(str, Enum):
 
 @dataclass
 class LogEntry:
-    
-    
     message: str
     level: LogLevel = LogLevel.INFO
     category: LogCategory = LogCategory.SYSTEM
@@ -52,7 +47,7 @@ class LogEntry:
     language: Optional[str] = None
     progress: Optional[int] = None
     total: Optional[int] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
@@ -69,26 +64,23 @@ class LogEntry:
             "progress": self.progress,
             "total": self.total,
         }
-    
+
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
 
 
 class LogBuffer:
-    
-    
     def __init__(self, max_size: int = 1000):
         self.max_size = max_size
         self._logs: List[LogEntry] = []
         self._lock = asyncio.Lock()
-    
+
     async def add(self, entry: LogEntry) -> None:
-        
         async with self._lock:
             self._logs.append(entry)
             if len(self._logs) > self.max_size:
-                self._logs = self._logs[-self.max_size:]
-    
+                self._logs = self._logs[-self.max_size :]
+
     async def get_recent(
         self,
         count: int = 100,
@@ -96,23 +88,21 @@ class LogBuffer:
         session_id: Optional[str] = None,
         level: Optional[LogLevel] = None,
     ) -> List[LogEntry]:
-        
         async with self._lock:
             filtered = self._logs
-            
+
             if category:
                 filtered = [l for l in filtered if l.category == category]
-            
+
             if session_id:
                 filtered = [l for l in filtered if l.session_id == session_id]
-            
+
             if level:
                 filtered = [l for l in filtered if l.level == level]
-            
+
             return filtered[-count:]
-    
+
     async def clear(self, session_id: Optional[str] = None) -> None:
-        
         async with self._lock:
             if session_id:
                 self._logs = [l for l in self._logs if l.session_id != session_id]
@@ -125,13 +115,13 @@ class LoggingService:
         self.buffer = LogBuffer()
         self._subscribers: Dict[str, List[Callable]] = {}
         self._channel_layer = None
-    
+
     @property
     def channel_layer(self):
         if self._channel_layer is None:
             self._channel_layer = get_channel_layer()
         return self._channel_layer
-    
+
     async def log(
         self,
         message: str,
@@ -159,17 +149,16 @@ class LoggingService:
             total=total,
             metadata=metadata,
         )
-        
+
         await self.buffer.add(entry)
         await self._broadcast(entry)
-        
+
         log_func = getattr(logger, level.value, logger.info)
         log_func(f"[{category.value}] {message}")
-        
+
         return entry
-    
+
     async def _broadcast(self, entry: LogEntry) -> None:
-        
         try:
             if self.channel_layer:
                 if entry.session_id:
@@ -178,26 +167,25 @@ class LoggingService:
                         {
                             "type": "log_message",
                             "log": entry.to_dict(),
-                        }
+                        },
                     )
-                
+
                 await self.channel_layer.group_send(
                     "logs_global",
                     {
                         "type": "log_message",
                         "log": entry.to_dict(),
-                    }
+                    },
                 )
         except Exception as e:
             logger.warning(f"Failed to broadcast log: {e}")
-        
+
     async def agent_thinking(
         self,
         agent_name: str,
         thought: str,
         session_id: str,
     ) -> LogEntry:
-        
         return await self.log(
             message=thought,
             level=LogLevel.INFO,
@@ -207,7 +195,7 @@ class LoggingService:
             agent=agent_name,
             type="thinking",
         )
-    
+
     async def agent_action(
         self,
         agent_name: str,
@@ -215,20 +203,21 @@ class LoggingService:
         input_data: Any,
         session_id: str,
     ) -> LogEntry:
-        
         return await self.log(
             message=f"Executing {tool}",
             level=LogLevel.INFO,
             category=LogCategory.TOOL,
             source=f"agent.{agent_name}",
             session_id=session_id,
-            code=json.dumps(input_data, indent=2) if isinstance(input_data, dict) else str(input_data),
+            code=json.dumps(input_data, indent=2)
+            if isinstance(input_data, dict)
+            else str(input_data),
             language="json",
             agent=agent_name,
             tool=tool,
             type="action",
         )
-    
+
     async def agent_observation(
         self,
         agent_name: str,
@@ -236,7 +225,6 @@ class LoggingService:
         output: str,
         session_id: str,
     ) -> LogEntry:
-        
         return await self.log(
             message=f"Result from {tool}",
             level=LogLevel.INFO,
@@ -248,14 +236,13 @@ class LoggingService:
             tool=tool,
             type="observation",
         )
-    
+
     async def terraform_output(
         self,
         output: str,
         session_id: str,
         is_error: bool = False,
     ) -> LogEntry:
-        
         return await self.log(
             message="Terraform output",
             level=LogLevel.ERROR if is_error else LogLevel.INFO,
@@ -265,7 +252,7 @@ class LoggingService:
             code=output,
             language="hcl",
         )
-    
+
     async def deployment_progress(
         self,
         message: str,
@@ -273,7 +260,6 @@ class LoggingService:
         total: int,
         session_id: str,
     ) -> LogEntry:
-        
         return await self.log(
             message=message,
             level=LogLevel.INFO,
@@ -283,7 +269,7 @@ class LoggingService:
             progress=progress,
             total=total,
         )
-    
+
     async def security_finding(
         self,
         title: str,
@@ -291,9 +277,8 @@ class LoggingService:
         description: str,
         session_id: str,
     ) -> LogEntry:
-        
         level = LogLevel.ERROR if severity in ["critical", "high"] else LogLevel.WARNING
-        
+
         return await self.log(
             message=f"[{severity.upper()}] {title}",
             level=level,
@@ -303,14 +288,13 @@ class LoggingService:
             severity=severity,
             description=description,
         )
-    
+
     async def get_logs(
         self,
         session_id: Optional[str] = None,
         category: Optional[LogCategory] = None,
         count: int = 100,
     ) -> List[Dict[str, Any]]:
-        
         entries = await self.buffer.get_recent(
             count=count,
             category=category,
