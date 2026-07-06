@@ -1,0 +1,39 @@
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh -s -- --install-method deb
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/bin/tofu /usr/bin/tofu
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY . .
+
+RUN useradd -m kubetofu && chown -R kubetofu:kubetofu /app
+USER kubetofu
+RUN python manage.py collectstatic --noinput
+RUN mkdir -p /app/data /app/workspaces
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health/ || exit 1
+
+CMD ["sh", "-c", "python manage.py migrate && gunicorn kubetofu.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000"]
