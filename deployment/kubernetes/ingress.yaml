@@ -1,0 +1,66 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubetofu-ingress
+  namespace: kubetofu
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/websocket-services: "kubetofu-backend"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://kube-tofu.dwin.codes"
+spec:
+  tls:
+    - hosts:
+        - kube-tofu.dwin.codes
+        - admin.kube-tofu.dwin.codes
+        - core.kube-tofu.dwin.codes
+      secretName: kubetofu-tls
+  rules:
+    - host: kube-tofu.dwin.codes
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: kubetofu-backend
+                port:
+                  number: 8000
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: kubetofu-backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubetofu-frontend
+                port:
+                  number: 3000
+    - host: admin.kube-tofu.dwin.codes
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubetofu-backend
+                port:
+                  number: 8000
+    - host: core.kube-tofu.dwin.codes
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubetofu-backend
+                port:
+                  number: 8000
