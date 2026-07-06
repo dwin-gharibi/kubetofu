@@ -1,0 +1,90 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.hostname = "kubetofu-dev"
+  config.vm.network "private_network", ip: "192.168.56.10"
+  config.vm.network "forwarded_port", guest: 3000, host: 3000  # Frontend
+  config.vm.network "forwarded_port", guest: 8000, host: 8000  # Backend
+  config.vm.network "forwarded_port", guest: 5432, host: 5432  # PostgreSQL
+  config.vm.network "forwarded_port", guest: 6379, host: 6379  # Redis
+
+  config.vm.synced_folder "../..", "/home/vagrant/kube-tofu"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "kubetofu-dev"
+    vb.memory = "4096"
+    vb.cpus = 2
+    vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    set -e
+
+    echo "=== Kube-Tofu Development Environment Setup ==="
+
+    apt-get update
+    apt-get upgrade -y
+
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
+    usermod -aG docker vagrant
+
+    apt-get install -y docker-compose-plugin
+
+    apt-get install -y software-properties-common
+    add-apt-repository -y ppa:deadsnakes/ppa
+    apt-get update
+    apt-get install -y python3.11 python3.11-venv python3.11-dev python3-pip
+
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+    curl -fsSL https://get.opentofu.org/install-opentofu.sh | sh -s -- --install-method deb
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    rm kubectl
+
+    apt-get install -y git vim curl wget jq htop
+    apt-get install -y postgresql-client
+    apt-get install -y redis-tools
+
+    mkdir -p /home/vagrant/workspace
+    chown vagrant:vagrant /home/vagrant/workspace
+
+    echo "=== Setup Complete ==="
+    echo ""
+    echo "Next steps:"
+    echo "  1. vagrant ssh"
+    echo "  2. cd /home/vagrant/kube-tofu"
+    echo "  3. cd deployment/docker && docker compose up -d"
+    echo ""
+    echo "Access:"
+    echo "  Frontend: http://localhost:3000"
+    echo "  Backend:  http://localhost:8000"
+    echo "  API Docs: http://localhost:8000/api/docs/"
+  SHELL
+
+  config.vm.post_up_message = <<-MESSAGE
+
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║         Kube-Tofu Development Environment Ready!              ║
+    ╠═══════════════════════════════════════════════════════════════╣
+    ║                                                               ║
+    ║  SSH:      vagrant ssh                                        ║
+    ║  IP:       192.168.56.10                                      ║
+    ║                                                               ║
+    ║  Services:                                                    ║
+    ║    Frontend: http://localhost:3000                            ║
+    ║    Backend:  http://localhost:8000                            ║
+    ║    API Docs: http://localhost:8000/api/docs/                  ║
+    ║                                                               ║
+    ║  To start services:                                           ║
+    ║    vagrant ssh                                                ║
+    ║    cd /home/vagrant/kube-tofu/deployment/docker               ║
+    ║    docker compose up -d                                       ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+
+  MESSAGE
+end
