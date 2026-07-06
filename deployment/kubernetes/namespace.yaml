@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubetofu
+  labels:
+    app.kubernetes.io/name: kubetofu
+    app.kubernetes.io/part-of: kubetofu
