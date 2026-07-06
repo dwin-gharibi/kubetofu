@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubetofu-frontend
+  namespace: kubetofu
+  labels:
+    app: kubetofu-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kubetofu-frontend
+  template:
+    metadata:
+      labels:
+        app: kubetofu-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: kubetofu/frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: kubetofu-config
+                  key: NEXT_PUBLIC_API_URL
+            - name: NEXT_PUBLIC_WS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: kubetofu-config
+                  key: NEXT_PUBLIC_WS_URL
+            - name: NEXT_PUBLIC_ADMIN_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: kubetofu-config
+                  key: NEXT_PUBLIC_ADMIN_URL
+            - name: NODE_ENV
+              value: "production"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubetofu-frontend
+  namespace: kubetofu
+spec:
+  selector:
+    app: kubetofu-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  type: ClusterIP
