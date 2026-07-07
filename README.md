@@ -25,8 +25,6 @@ cloud costs, and — with your approval — deploys it for real.
 [![OpenTofu](https://img.shields.io/badge/OpenTofu-IaC-FFDA18?style=for-the-badge&logo=opentofu&logoColor=black)](https://opentofu.org)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-Native-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io)
 
-🌐 **English** &nbsp;·&nbsp; [فارسی](README.fa.md)
-
 </div>
 
 ---
